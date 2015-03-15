@@ -1,0 +1,338 @@
+#define pown2(x) ((x)*(x))
+#define pown3(x) ((x)*(x)*(x))
+#define pown4(x) ((x)*(x)*(x)*(x))
+
+f = force_index_j + 1
+
+DO quadrature_index_i = 0, TOTAL_NUMBER_OF_QUADRATURE_POINTS-1
+
+  G(quadrature_index_i+1,:) = 0.0
+  GF(quadrature_index_i+1,:) = 0.0
+
+  position_on_fiber_i = position_i + quadrature_points(quadrature_index_i+1) * orientation_i
+
+  R0 = position_on_fiber_i - position_j
+  b = -2.0 * DOT_PRODUCT(R0, orientation_j)
+
+  l = DOT_PRODUCT(R0, R0)
+  invL = 1.0 / l
+
+  llimit = 10.0
+
+  m = l - 0.25 * b * b
+
+  s_upper = 1.0
+  s_lower = -1.0
+
+  u_upper = SQRT(s_upper * s_upper + b * s_upper + l)
+  u_lower = SQRT(s_lower * s_lower + b * s_lower + l)
+
+  ! IF (i==89 .AND. j==21 .AND. force_index_j==4 .AND. quadrature_index_i==0) THEN
+  !   PRINT '(*(F32.16))', position_i(1), position_i(2), position_i(3)
+  !   PRINT '(*(F32.16))', orientation_i(1), orientation_i(2), orientation_i(3)
+  !   PRINT '(*(F32.16))', real(quadrature_index_i+1), quadrature_points(quadrature_index_i+1)
+  !   PRINT '(*(F32.16))', position_on_fiber_i(1), position_on_fiber_i(2), position_on_fiber_i(3)
+  !   PRINT '(*(F32.16))', position_j(1), position_j(2), position_j(3)
+  !   PRINT '(*(F32.16))', R0(1), R0(2), R0(3)
+  !   PRINT '(*(F32.16))', b
+  !   PRINT '(*(F32.16))', l
+  !   PRINT '(*(F32.16))', m
+  ! ENDIF
+
+  I1(1) = LOG(ABS(2.0 * s_upper + b + 2.0 * u_upper)) - LOG(ABS(2.0 * s_lower + b + 2.0 * u_lower))
+  I1(2) = u_upper - u_lower + (-b / 2.0) * I1(1)
+
+  I3(1) = merge( &
+            (-2.0 / pown2(2.0 * s_upper + b)) - (-2.0 / pown2(2.0 * s_lower + b)), &
+            ((2.0 * s_upper + b) / (2.0 * m * u_upper)) - ((2.0 * s_lower + b) / (2.0 * m * u_lower)), &
+            m < 1e-7)
+  I3(2) = (-1.0 / u_upper) - (-1.0 / u_lower) - b / 2.0 * I3(1);
+
+  I5(1) = merge( &
+            (-4.0 / pown4(2.0 * s_upper + b)) - (-4.0 / pown4(2.0 * s_lower + b)), &
+            ((2.0 * s_upper + b) / (6.0 * m * pown3(u_upper))) - ((2.0 * s_lower + b) / (6.0 * m * pown3(u_lower))) + (2.0 / (3.0 * m)) * I3(1), &
+            m < 1e-7)
+
+  I5(2) = merge( &
+            (-8.0 / (3.0 * pown3(2.0 * s_upper + b))) - (-8.0 / (3.0 * pown3(2.0 * s_lower + b))) - (b / 2.0) * I5(1), &
+            (-(b * s_upper + 2.0 * l) / (6.0 * m * pown3(u_upper))) - (-(b * s_lower + 2.0 * l) / (6.0 * m * pown3(u_lower))) - (b / (3.0 * m)) * I3(1), &
+            m < 1e-7)
+
+!S(2) = -(b*se+2.0d0*c)/(6.0d0*d*ue**3.0d0)+(b*sb+2.0d0*c)/(6.0d0*d*ub**3.0d0)-b/(3.0d0*d)*J(1);
+  ! IF (i==89 .AND. j==21 .AND. force_index_j==4 .AND. quadrature_index_i==0) THEN
+  !    PRINT '(*(F32.16))', REAL(1), I5(1)
+  !    PRINT '(*(F32.16))', REAL(2), I5(2)
+  ! END IF
+
+  IF (l < llimit) THEN
+
+    pow_s_upper = s_upper;
+    pow_s_lower = s_lower;
+
+    DO n = 2, f + 3 - 1
+
+      I1(n+1) = (pow_s_upper * u_upper) / n - (pow_s_lower * u_lower) / n &
+              + ((1.0 - 2.0 * n) * b) / (2.0 * n) * I1(n) - ((n - 1) * l) / n * I1(n-1)
+
+      I3(n+1) = I1(n-1) - b * I3(n) - l * I3(n-1)
+
+      I5(n+1) = I3(n-1) - b * I5(n) - l * I5(n-1)
+
+      MULTIPLY_EQUALS(pow_s_upper, s_upper)
+      MULTIPLY_EQUALS(pow_s_lower, s_lower)
+
+      ! IF (i==89 .AND. j==21 .AND. force_index_j==4 .AND. quadrature_index_i==0) THEN
+      !    PRINT '(*(F32.16))', REAL(n+1), REAL(f), I5(n+1)
+      ! END IF
+
+    END DO
+  ELSE
+
+    i1n2 = 0.0
+    i1n1 = 0.0
+    i1n0 = 0.0
+
+    i3n2 = 0.0
+    i3n1 = 0.0
+    i3n0 = 0.0
+
+    i5n2 = 0.0
+    i5n1 = 0.0
+    i5n0 = 0.0
+
+    DO n = 27, 2, -1
+      i1n0 = (n + 2.0) / ((n + 1.0) * l) * ( &
+                 ((s_upper**(n + 1) * u_upper) / (n + 2.0)) - ((s_lower**(n + 1) * u_lower) / (n + 2.0)) &
+                 + ((1.0 - 2.0 * (n + 2.0)) / (2.0 * (n + 2.0))) * b * i1n1 - i1n2);
+
+      i3n0 = invL * (i1n0 - b * i3n1 - i3n2)
+      i5n0 = invL * (i3n0 - b * i5n1 - i5n2)
+
+      IF (n < NUMBER_OF_TERMS_IN_FORCE_EXPANSION + 3) THEN
+        I1(n+1) = i1n0
+        I3(n+1) = i3n0
+        I5(n+1) = i5n0
+      END IF
+
+      i1n2 = i1n1
+      i1n1 = i1n0
+
+      i3n2 = i3n1
+      i3n1 = i3n0
+
+      i5n2 = i5n1
+      i5n1 = i5n0
+    END DO
+
+  END IF
+
+!   IF (i==89 .AND. j==21 .AND. force_index_j==4 .AND. quadrature_index_i==0) THEN
+! PRINT '(*(F16.6))', I1(1),I1(2),I1(3),I1(4),I1(5),I1(6),I1(7),I1(8)
+! PRINT '(*(F16.6))', I3(1),I3(2),I3(3),I3(4),I3(5),I3(6),I3(7),I3(8)
+! PRINT '(*(F16.6))', I5(1),I5(2),I5(3),I5(4),I5(5),I5(6),I5(7),I5(8)
+!   END IF
+
+  IF (f == 0 .OR. f == 1) THEN
+      L01 = I1(f + 1)
+      L03 = I3(f + 1)
+      L05 = I5(f + 1)
+      L13 = I3(f + 2)
+      L15 = I5(f + 2)
+      L23 = I3(f + 3)
+      L25 = I5(f + 3)
+  ELSE IF (f == 2) THEN
+      L01 = 0.5 * (3.0 * I1(f + 1) - I1(f - 1))
+      L03 = 0.5 * (3.0 * I3(f + 1) - I3(f - 1))
+      L05 = 0.5 * (3.0 * I5(f + 1) - I5(f - 1))
+      L13 = 0.5 * (3.0 * I3(f + 2) - I3(f))
+      L15 = 0.5 * (3.0 * I5(f + 2) - I5(f))
+      L23 = 0.5 * (3.0 * I3(f + 3) - I3(f + 1))
+      L25 = 0.5 * (3.0 * I5(f + 3) - I5(f + 1))
+  ELSE IF (f == 3) THEN
+      L01 = 0.5 * (5.0 * I1(f + 1) - 3.0 * I1(f - 1))
+      L03 = 0.5 * (5.0 * I3(f + 1) - 3.0 * I3(f - 1))
+      L05 = 0.5 * (5.0 * I5(f + 1) - 3.0 * I5(f - 1))
+      L13 = 0.5 * (5.0 * I3(f + 2) - 3.0 * I3(f))
+      L15 = 0.5 * (5.0 * I5(f + 2) - 3.0 * I5(f))
+      L23 = 0.5 * (5.0 * I3(f + 3) - 3.0 * I3(f + 1))
+      L25 = 0.5 * (5.0 * I5(f + 3) - 3.0 * I5(f + 1))
+  ELSE IF (f == 4) THEN
+      L01 = 0.125 * (35.0 * I1(f + 1) - 30.0 * I1(f - 1) + 3.0 * I1(f - 3))
+      L03 = 0.125 * (35.0 * I3(f + 1) - 30.0 * I3(f - 1) + 3.0 * I3(f - 3))
+      L05 = 0.125 * (35.0 * I5(f + 1) - 30.0 * I5(f - 1) + 3.0 * I5(f - 3))
+      L13 = 0.125 * (35.0 * I3(f + 2) - 30.0 * I3(f) + 3.0 * I3(f - 2))
+      L15 = 0.125 * (35.0 * I5(f + 2) - 30.0 * I5(f) + 3.0 * I5(f - 2))
+      L23 = 0.125 * (35.0 * I3(f + 3) - 30.0 * I3(f + 1) + 3.0 * I3(f - 1))
+      L25 = 0.125 * (35.0 * I5(f + 3) - 30.0 * I5(f + 1) + 3.0 * I5(f - 1))
+  ELSE IF (f == 5) THEN
+      L01 = 0.125 * (63.0 * I1(f + 1) - 70.0 * I1(f - 1) + 15.0 * I1(f - 3))
+      L03 = 0.125 * (63.0 * I3(f + 1) - 70.0 * I3(f - 1) + 15.0 * I3(f - 3))
+      L05 = 0.125 * (63.0 * I5(f + 1) - 70.0 * I5(f - 1) + 15.0 * I5(f - 3))
+      L13 = 0.125 * (63.0 * I3(f + 2) - 70.0 * I3(f) + 15.0 * I3(f - 2))
+      L15 = 0.125 * (63.0 * I5(f + 2) - 70.0 * I5(f) + 15.0 * I5(f - 2))
+      L23 = 0.125 * (63.0 * I3(f + 3) - 70.0 * I3(f + 1) + 15.0 * I3(f - 1))
+      L25 = 0.125 * (63.0 * I5(f + 3) - 70.0 * I5(f + 1) + 15.0 * I5(f - 1))
+      ! IF (i==89 .AND. j==21 .AND. force_index_j==4 .AND. quadrature_index_i==0) THEN
+      !    PRINT '(*(F16.6))', L01, L03, L05, L13, L15, L23, L25
+      !    PRINT '(*(F16.6))', real(f+1), I1(f + 1), I1(f - 1), I1(f - 3)
+      !    PRINT '(*(F16.6))', real(f+1), 0.125 *63.0 * I1(f + 1) - 0.125 *70.0 * I1(f - 1) + 0.125 *15.0 * I1(f - 3)
+      !    PRINT '(*(F16.6))', real(f+1), 0.125 * (63.0 * I1(f + 1) - 70.0 * I1(f - 1) + 15.0 * I1(f - 3))
+      ! END IF
+  ELSE IF (f == 6) THEN
+      L01 = 0.0625 * (231.0 * I1(f + 1) - 315.0 * I1(f - 1) + 105.0 * I1(f - 3) - 5.0 * I1(f - 5))
+      L03 = 0.0625 * (231.0 * I3(f + 1) - 315.0 * I3(f - 1) + 105.0 * I3(f - 3) - 5.0 * I3(f - 5))
+      L05 = 0.0625 * (231.0 * I5(f + 1) - 315.0 * I5(f - 1) + 105.0 * I5(f - 3) - 5.0 * I5(f - 5))
+      L13 = 0.0625 * (231.0 * I3(f + 2) - 315.0 * I3(f) + 105.0 * I3(f - 2) - 5.0 * I3(f - 4))
+      L15 = 0.0625 * (231.0 * I5(f + 2) - 315.0 * I5(f) + 105.0 * I5(f - 2) - 5.0 * I5(f - 4))
+      L23 = 0.0625 * (231.0 * I3(f + 3) - 315.0 * I3(f + 1) + 105.0 * I3(f - 1) - 5.0 * I3(f - 3))
+      L25 = 0.0625 * (231.0 * I5(f + 3) - 315.0 * I5(f + 1) + 105.0 * I5(f - 1) - 5.0 * I5(f - 3))
+  ELSE IF (f == 7) THEN
+      L01 = 0.0625 * (429.0 * I1(f + 1) - 693.0 * I1(f - 1) + 315.0 * I1(f - 3) - 35.0 * I1(f - 5))
+      L03 = 0.0625 * (429.0 * I3(f + 1) - 693.0 * I3(f - 1) + 315.0 * I3(f - 3) - 35.0 * I3(f - 5))
+      L05 = 0.0625 * (429.0 * I5(f + 1) - 693.0 * I5(f - 1) + 315.0 * I5(f - 3) - 35.0 * I5(f - 5))
+      L13 = 0.0625 * (429.0 * I3(f + 2) - 693.0 * I3(f) + 315.0 * I3(f - 2) - 35.0 * I3(f - 4))
+      L15 = 0.0625 * (429.0 * I5(f + 2) - 693.0 * I5(f) + 315.0 * I5(f - 2) - 35.0 * I5(f - 4))
+      L23 = 0.0625 * (429.0 * I3(f + 3) - 693.0 * I3(f + 1) + 315.0 * I3(f - 1) - 35.0 * I3(f - 3))
+      L25 = 0.0625 * (429.0 * I5(f + 3) - 693.0 * I5(f + 1) + 315.0 * I5(f - 1) - 35.0 * I5(f - 3))
+  ELSE IF (f == 8) THEN
+      L01 = 0.0078125 * (6435.0 * I1(f + 1) - 12012.0 * I1(f - 1) + 6930.0 * I1(f - 3) - 1260.0 * I1(f - 5) + 35.0 * I1(f - 7))
+      L03 = 0.0078125 * (6435.0 * I3(f + 1) - 12012.0 * I3(f - 1) + 6930.0 * I3(f - 3) - 1260.0 * I3(f - 5) + 35.0 * I3(f - 7))
+      L05 = 0.0078125 * (6435.0 * I5(f + 1) - 12012.0 * I5(f - 1) + 6930.0 * I5(f - 3) - 1260.0 * I5(f - 5) + 35.0 * I5(f - 7))
+      L13 = 0.0078125 * (6435.0 * I3(f + 2) - 12012.0 * I3(f) + 6930.0 * I3(f - 2) - 1260.0 * I3(f - 4) + 35.0 * I3(f - 6))
+      L15 = 0.0078125 * (6435.0 * I5(f + 2) - 12012.0 * I5(f) + 6930.0 * I5(f - 2) - 1260.0 * I5(f - 4) + 35.0 * I5(f - 6))
+      L23 = 0.0078125 * (6435.0 * I3(f + 3) - 12012.0 * I3(f + 1) + 6930.0 * I3(f - 1) - 1260.0 * I3(f - 3) + 35.0 * I3(f - 5))
+      L25 = 0.0078125 * (6435.0 * I5(f + 3) - 12012.0 * I5(f + 1) + 6930.0 * I5(f - 1) - 1260.0 * I5(f - 3) + 35.0 * I5(f - 5))
+  END IF
+
+  G(quadrature_index_i + 1,1) = &
+      L01 &
+      + L03 * (R0(1) * R0(1)) &
+      - L13 * (orientation_j(1) * R0(1) + R0(1) * orientation_j(1)) &
+      + L23 * (orientation_j(1) * orientation_j(1)) &
+      + 2.0 * SLENDERNESS * SLENDERNESS * ( &
+          L03 &
+          - 3.0 * L05 * (R0(1) * R0(1)) &
+          + 3.0 * L15 * (orientation_j(1) * R0(1) + R0(1) * orientation_j(1)) &
+          - 3.0 * L25 * (orientation_j(1) * orientation_j(1)))
+  G(quadrature_index_i + 1,2) = &
+      L01 &
+      + L03 * (R0(2) * R0(2)) &
+      - L13 * (orientation_j(2) * R0(2) + R0(2) * orientation_j(2)) &
+      + L23 * (orientation_j(2) * orientation_j(2)) &
+      + 2.0 * SLENDERNESS * SLENDERNESS * ( &
+          L03 &
+          - 3.0 * L05 * (R0(2) * R0(2)) &
+          + 3.0 * L15 * (orientation_j(2) * R0(2) + R0(2) * orientation_j(2)) &
+          - 3.0 * L25 * (orientation_j(2) * orientation_j(2)))
+  G(quadrature_index_i + 1,3) = &
+      L01 &
+      + L03 * (R0(3) * R0(3)) &
+      - L13 * (orientation_j(3) * R0(3) + R0(3) * orientation_j(3)) &
+      + L23 * (orientation_j(3) * orientation_j(3)) &
+      + 2.0 * SLENDERNESS * SLENDERNESS * ( &
+          L03 &
+          - 3.0 * L05 * (R0(3) * R0(3)) &
+          + 3.0 * L15 * (orientation_j(3) * R0(3) + R0(3) * orientation_j(3)) &
+          - 3.0 * L25 * (orientation_j(3) * orientation_j(3)))
+  G(quadrature_index_i + 1,4) = &
+      L03 * (R0(1) * R0(2)) &
+      - L13 * (orientation_j(1) * R0(2) + R0(1) * orientation_j(2)) &
+      + L23 * (orientation_j(1) * orientation_j(2)) &
+      + 2.0 * SLENDERNESS * SLENDERNESS * ( &
+          - 3.0 * L05 * (R0(1) * R0(2)) &
+          + 3.0 * L15 * (orientation_j(1) * R0(2) + R0(1) * orientation_j(2)) &
+          - 3.0 * L25 * (orientation_j(1) * orientation_j(2)))
+  G(quadrature_index_i + 1,5) = &
+      L03 * (R0(1) * R0(3)) &
+      - L13 * (orientation_j(1) * R0(3) + R0(1) * orientation_j(3)) &
+      + L23 * (orientation_j(1) * orientation_j(3)) &
+      + 2.0 * SLENDERNESS * SLENDERNESS * ( &
+          - 3.0 * L05 * (R0(1) * R0(3)) &
+          + 3.0 * L15 * (orientation_j(1) * R0(3) + R0(1) * orientation_j(3)) &
+          - 3.0 * L25 * (orientation_j(1) * orientation_j(3)))
+  G(quadrature_index_i + 1,6) = &
+      L03 * (R0(2) * R0(3)) &
+      - L13 * (orientation_j(2) * R0(3) + R0(2) * orientation_j(3)) &
+      + L23 * (orientation_j(2) * orientation_j(3)) &
+      + 2.0 * SLENDERNESS * SLENDERNESS * ( &
+          - 3.0 * L05 * (R0(2) * R0(3)) &
+          + 3.0 * L15 * (orientation_j(2) * R0(3) + R0(2) * orientation_j(3)) &
+          - 3.0 * L25 * (orientation_j(2) * orientation_j(3)))
+
+  ! IF (i==89 .AND. j==21 .AND. force_index_j==4 .AND. quadrature_index_i==0) THEN
+  !   PRINT '(*(F16.6))', G(quadrature_index_i + 1,1), G(quadrature_index_i + 1,2), G(quadrature_index_i + 1,3), G(quadrature_index_i + 1,4), G(quadrature_index_i + 1,5), G(quadrature_index_i + 1,6)
+  ! END IF
+
+  IF (force_index_j == 0) THEN
+    L01 = I1(1)
+    L03 = I3(1)
+    L05 = I5(1)
+    L13 = I3(2)
+    L15 = I5(2)
+    L23 = I3(3)
+    L25 = I5(3)
+
+    G11 = &
+        L01 &
+        + L03 * (R0(1) * R0(1)) &
+        - L13 * (orientation_j(1) * R0(1) + R0(1) * orientation_j(1)) &
+        + L23 * (orientation_j(1) * orientation_j(1)) &
+        + 2.0 * SLENDERNESS * SLENDERNESS * ( &
+            L03 &
+            - 3.0 * L05 * (R0(1) * R0(1)) &
+            + 3.0 * L15 * (orientation_j(1) * R0(1) + R0(1) * orientation_j(1)) &
+            - 3.0 * L25 * (orientation_j(1) * orientation_j(1)))
+    G22 = &
+        L01 &
+        + L03 * (R0(2) * R0(2)) &
+        - L13 * (orientation_j(2) * R0(2) + R0(2) * orientation_j(2)) &
+        + L23 * (orientation_j(2) * orientation_j(2)) &
+        + 2.0 * SLENDERNESS * SLENDERNESS * ( &
+            L03 &
+            - 3.0 * L05 * (R0(2) * R0(2)) &
+            + 3.0 * L15 * (orientation_j(2) * R0(2) + R0(2) * orientation_j(2)) &
+            - 3.0 * L25 * (orientation_j(2) * orientation_j(2)))
+    G33 = &
+        L01 &
+        + L03 * (R0(3) * R0(3)) &
+        - L13 * (orientation_j(3) * R0(3) + R0(3) * orientation_j(3)) &
+        + L23 * (orientation_j(3) * orientation_j(3)) &
+        + 2.0 * SLENDERNESS * SLENDERNESS * ( &
+            L03 &
+            - 3.0 * L05 * (R0(3) * R0(3)) &
+            + 3.0 * L15 * (orientation_j(3) * R0(3) + R0(3) * orientation_j(3)) &
+            - 3.0 * L25 * (orientation_j(3) * orientation_j(3)))
+    G12 = &
+        L03 * (R0(1) * R0(2)) &
+        - L13 * (orientation_j(1) * R0(2) + R0(1) * orientation_j(2)) &
+        + L23 * (orientation_j(1) * orientation_j(2)) &
+        + 2.0 * SLENDERNESS * SLENDERNESS * ( &
+            - 3.0 * L05 * (R0(1) * R0(2)) &
+            + 3.0 * L15 * (orientation_j(1) * R0(2) + R0(1) * orientation_j(2)) &
+            - 3.0 * L25 * (orientation_j(1) * orientation_j(2)))
+    G13 = &
+        L03 * (R0(1) * R0(3)) &
+        - L13 * (orientation_j(1) * R0(3) + R0(1) * orientation_j(3)) &
+        + L23 * (orientation_j(1) * orientation_j(3)) &
+        + 2.0 * SLENDERNESS * SLENDERNESS * ( &
+            - 3.0 * L05 * (R0(1) * R0(3)) &
+            + 3.0 * L15 * (orientation_j(1) * R0(3) + R0(1) * orientation_j(3)) &
+            - 3.0 * L25 * (orientation_j(1) * orientation_j(3)))
+    G23 = &
+        L03 * (R0(2) * R0(3)) &
+        - L13 * (orientation_j(2) * R0(3) + R0(2) * orientation_j(3)) &
+        + L23 * (orientation_j(2) * orientation_j(3)) &
+        + 2.0 * SLENDERNESS * SLENDERNESS * ( &
+            - 3.0 * L05 * (R0(2) * R0(3)) &
+            + 3.0 * L15 * (orientation_j(2) * R0(3) + R0(2) * orientation_j(3)) &
+            - 3.0 * L25 * (orientation_j(2) * orientation_j(3)))
+
+    GF(quadrature_index_i + 1, 1) = &
+        G11 * external_force(1) + G12 * external_force(2) + G13 * external_force(3)
+    GF(quadrature_index_i + 1, 2) = &
+        G12 * external_force(1) + G22 * external_force(2) + G23 * external_force(3)
+    GF(quadrature_index_i + 1, 3) = &
+        G13 * external_force(1) + G23 * external_force(2) + G33 * external_force(3)
+  END IF
+
+END DO

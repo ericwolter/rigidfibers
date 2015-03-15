@@ -1,0 +1,17 @@
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
+DO i = 0, NUMBER_OF_FIBERS-1
+  next_positions(i*DIMENSIONS + 1:i*DIMENSIONS + DIMENSIONS) = &
+      (4.0 / 3.0) * current_positions(i*DIMENSIONS + 1:i*DIMENSIONS + DIMENSIONS) &
+    - (1.0 / 3.0) * previous_positions(i*DIMENSIONS + 1:i*DIMENSIONS + DIMENSIONS) &
+    + (2.0 / 3.0) * TIMESTEP &
+      * (2.0 * current_translational_velocities(i*DIMENSIONS + 1:i*DIMENSIONS + DIMENSIONS) - previous_translational_velocities(i*DIMENSIONS + 1:i*DIMENSIONS + DIMENSIONS))
+
+  next_orientations(i*DIMENSIONS + 1:i*DIMENSIONS + DIMENSIONS) = &
+      (4.0 / 3.0) * current_orientations(i*DIMENSIONS + 1:i*DIMENSIONS + DIMENSIONS) &
+    - (1.0 / 3.0) * previous_orientations(i*DIMENSIONS + 1:i*DIMENSIONS + DIMENSIONS) &
+    + (2.0 / 3.0) * TIMESTEP &
+      * (2.0 * current_rotational_velocities(i*DIMENSIONS + 1:i*DIMENSIONS + DIMENSIONS) - previous_rotational_velocities(i*DIMENSIONS + 1:i*DIMENSIONS + DIMENSIONS))
+
+  DIVIDE_EQUALS(next_orientations(i*DIMENSIONS + 1:i*DIMENSIONS + DIMENSIONS), SQRT(DOT_PRODUCT(next_orientations(i*DIMENSIONS + 1:i*DIMENSIONS + DIMENSIONS), next_orientations(i*DIMENSIONS + 1:i*DIMENSIONS + DIMENSIONS))))
+END DO
+!$OMP END PARALLEL DO

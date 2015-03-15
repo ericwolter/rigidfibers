@@ -1,0 +1,40 @@
+DO quadrature_index_i = 0, TOTAL_NUMBER_OF_QUADRATURE_POINTS-1
+
+  G(quadrature_index_i+1,:) = 0.0
+  GF(quadrature_index_i+1,:) = 0.0
+
+  position_on_fiber_i = position_i + quadrature_points(quadrature_index_i+1) * orientation_i
+
+  DO quadrature_index_j = 0, TOTAL_NUMBER_OF_QUADRATURE_POINTS-1
+    position_on_fiber_j = position_j + quadrature_points(quadrature_index_j+1) * orientation_j
+
+    difference = position_on_fiber_i - position_on_fiber_j
+    difference2 = difference**2
+
+    invDistance = 1.0/SQRT(difference2(1)+difference2(2)+difference2(3))
+    invDistance3 = invDistance * invDistance * invDistance
+    invDistance5 = invDistance3 * invDistance * invDistance
+
+    K(1) = invDistance + invDistance3 * difference2(1) + 2.0 * SLENDERNESS * SLENDERNESS * (invDistance3 - 3.0 * invDistance5 * difference2(1))
+    K(2) = invDistance + invDistance3 * difference2(2) + 2.0 * SLENDERNESS * SLENDERNESS * (invDistance3 - 3.0 * invDistance5 * difference2(2))
+    K(3) = invDistance + invDistance3 * difference2(3) + 2.0 * SLENDERNESS * SLENDERNESS * (invDistance3 - 3.0 * invDistance5 * difference2(3))
+    K(4) = invDistance3 * difference(1) * difference(2) + 2.0 * SLENDERNESS * SLENDERNESS * (-3.0) * invDistance5 * difference(1) * difference(2)
+    K(5) = invDistance3 * difference(1) * difference(3) + 2.0 * SLENDERNESS * SLENDERNESS * (-3.0) * invDistance5 * difference(1) * difference(3)
+    K(6) = invDistance3 * difference(2) * difference(3) + 2.0 * SLENDERNESS * SLENDERNESS * (-3.0) * invDistance5 * difference(2) * difference(3)
+
+    quadrature_weight = quadrature_weights(quadrature_index_j+1)
+    legendre_polynomial = legendre_polynomials(quadrature_index_j+1, force_index_j+1)
+
+    PLUS_EQUALS(G(quadrature_index_i+1,1),quadrature_weight * K(1) * legendre_polynomial)
+    PLUS_EQUALS(G(quadrature_index_i+1,2),quadrature_weight * K(2) * legendre_polynomial)
+    PLUS_EQUALS(G(quadrature_index_i+1,3),quadrature_weight * K(3) * legendre_polynomial)
+    PLUS_EQUALS(G(quadrature_index_i+1,4),quadrature_weight * K(4) * legendre_polynomial)
+    PLUS_EQUALS(G(quadrature_index_i+1,5),quadrature_weight * K(5) * legendre_polynomial)
+    PLUS_EQUALS(G(quadrature_index_i+1,6),quadrature_weight * K(6) * legendre_polynomial)
+
+    PLUS_EQUALS(GF(quadrature_index_i+1,1), quadrature_weight * (K(1) * external_force(1) + K(4) * external_force(2) + K(5) * external_force(3)))
+    PLUS_EQUALS(GF(quadrature_index_i+1,2), quadrature_weight * (K(4) * external_force(1) + K(2) * external_force(2) + K(6) * external_force(3)))
+    PLUS_EQUALS(GF(quadrature_index_i+1,3), quadrature_weight * (K(5) * external_force(1) + K(6) * external_force(2) + K(3) * external_force(3)))
+
+  END DO
+END DO

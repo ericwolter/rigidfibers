@@ -1,0 +1,59 @@
+#if defined(DIRECT)
+
+CALL sgesv(TOTAL_NUMBER_OF_ROWS, 1, a_matrix, TOTAL_NUMBER_OF_ROWS, IPIV, b_vector, TOTAL_NUMBER_OF_ROWS, INFO)
+
+#elif defined(GMRES)
+
+#if defined(CONDITION_NUMBER)
+  work=0.0d0
+  a_norm = slange("1", TOTAL_NUMBER_OF_ROWS, TOTAL_NUMBER_OF_ROWS, a_matrix, TOTAL_NUMBER_OF_ROWS, cond_work)
+  !PRINT *, "a_norm:", a_norm
+  CALL sgetrf(TOTAL_NUMBER_OF_ROWS, TOTAL_NUMBER_OF_ROWS, a_matrix, TOTAL_NUMBER_OF_ROWS, cond_ipvt, cond_info);
+  !PRINT *, "sgetrf_info:", cond_info
+  CALL sgecon("1", TOTAL_NUMBER_OF_ROWS, a_matrix, TOTAL_NUMBER_OF_ROWS, a_norm, rcond, cond_work, cond_iwork, cond_info);
+  !PRINT *, "sgecon_info:", cond_info
+  PRINT *,"BENCHMARK:condition:", rcond
+#endif
+
+work=0.0d0
+work(TOTAL_NUMBER_OF_ROWS+1:2*TOTAL_NUMBER_OF_ROWS)=b_vector
+
+CALL init_sgmres(icntl,cntl)
+icntl(2)=0
+icntl(4)=0
+icntl(5)=0
+icntl(6)=1
+icntl(7)=GMRES_MAX_ITERATIONS
+icntl(8)=1
+
+cntl(1)=GMRES_TOLERANCE
+
+gmres_done=0
+DO WHILE (gmres_done==0)
+  CALL drive_sgmres(TOTAL_NUMBER_OF_ROWS, TOTAL_NUMBER_OF_ROWS, GMRES_RESTART, GMRES_LWORK, work, irc, icntl, cntl, gmres_info, gmres_rinfo)
+
+  IF (irc(1) == 1) THEN
+    CALL sgemv('N',TOTAL_NUMBER_OF_ROWS,TOTAL_NUMBER_OF_ROWS,1.0,a_matrix,TOTAL_NUMBER_OF_ROWS,work(irc(2)),1,0.0,work(irc(4)),1)
+  ELSE IF (irc(1) == 4) THEN
+    CALL sgemv('C',TOTAL_NUMBER_OF_ROWS,irc(5),1.0,work(irc(2)),TOTAL_NUMBER_OF_ROWS,work(irc(3)),1,0.0,work(irc(4)),1)
+  ELSE
+    gmres_done=1
+  END IF
+END DO
+
+PRINT*,"info", gmres_info(1)
+IF (gmres_info(1)<0) THEN
+   PRINT *,"GMRES returned with info(1)= ",gmres_info(1)
+   PRINT*,"With a backward error of: ", gmres_rinfo(2)
+   IF (gmres_info(1)==-3) THEN
+      PRINT *,"Workspace too small. lwork= ",GMRES_LWORK,", need ",gmres_info(2)
+   END IF
+ELSE IF (gmres_info(1)==0) THEN
+   PRINT*,"GMRES conv. in no. of iter.: ", gmres_info(2)
+   PRINT*,"With a backward error of: ", gmres_rinfo(2)
+END IF
+PRINT *,"BENCHMARK:gmres_iterations:", gmres_info(2)
+
+b_vector=work(1:TOTAL_NUMBER_OF_ROWS)
+
+#endif
