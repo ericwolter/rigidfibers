@@ -29,6 +29,9 @@ build/
 nsight-build/
 qtcreator-build/
 
+# exectuables
+tools/gen
+
 ##################################################
 #
 # OSX.gitignore
