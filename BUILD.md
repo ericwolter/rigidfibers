@@ -1,4 +1,4 @@
-This documents describes a possible way to setup the prerequisites in order to generate simulation results.
+This documents describes the manual way to setup the prerequisites.
 
 # 1. CUDA
 
@@ -58,7 +58,13 @@ make install prefix=my_magma_directory
 export OPENBLAS_ROOT=my_openblas_directory
 ```
 
-2. Execute *fibers_runner.py* script
+2. Make sure cmake will be able to find MAGMA by setting the environment variable **PKG_CONFIG_PATH**
+
+```bash
+export PKG_CONFIG_PATH=my_magma_directory/lib/pkgconfig
+```
+
+3. Execute *fibers_runner.py* script
 > The script will take care of executing *cmake* and building the code correctly. You do not need to manually execute *cmake*
 
 ```bash
