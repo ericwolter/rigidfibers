@@ -18,7 +18,7 @@ make
 4. Install compiled library to user defined directory (i.e. /NOBACKUP/ewolter/openblas)
 
 ```bash
-make install PREFIX=my_directory
+make PREFIX=my_openblas_directory install
 ```
 
 # 3. MAGMA
@@ -34,7 +34,7 @@ mv make.inc.openblas make.inc
 4. Make sure **OPENBLASDIR** environment variable is set to the user defined directory
 
 ```bash
-export OPENBLASDIR=my_directory
+export OPENBLASDIR=my_openblas_directory
 ```
 
 4. Compile source code
@@ -46,7 +46,7 @@ make
 5. Install compiled library to user defined directory (i.e /NOBACKUP/ewolter/magma)
 
 ```bash
-make install prefix=your_directory
+make install prefix=my_magma_directory
 ```
 
 # 4. Build & Run rigidfibers
@@ -55,7 +55,7 @@ make install prefix=your_directory
 > This needs to be done for every session, so it might be a good idea to add this line to your bash_profile file.
 
 ```bash
-export OPENBLAS_ROOT=my_directory
+export OPENBLAS_ROOT=my_openblas_directory
 ```
 
 2. Execute *fibers_runner.py* script
