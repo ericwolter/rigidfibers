@@ -1,4 +1,4 @@
-This documents describes a possible way to setup the prerequisties in order to generate simulation results.
+This documents describes a possible way to setup the prerequisites in order to generate simulation results.
 
 # 1. CUDA
 
