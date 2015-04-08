@@ -10,12 +10,12 @@ This documents describes a possible way to setup the prerequisties in order to g
 1. Download source from [http://www.openblas.net/]()
 2. Follow instructions on website under *Install from Source*
 3. Compile source code
- 
+
 ```bash
 make
 ```
 
-4. Install compiled library to user defined directory (i.e. /NOBACKUP/ewolter/usr/lib)
+4. Install compiled library to user defined directory (i.e. /NOBACKUP/ewolter/openblas)
 
 ```bash
 make install PREFIX=my_directory
@@ -43,7 +43,11 @@ export OPENBLASDIR=my_directory
 make
 ```
 
-5. Install compiled library to user defined directory (i.e /NOBACKUP/ewolter/)
+5. Install compiled library to user defined directory (i.e /NOBACKUP/ewolter/magma)
+
+```bash
+make install prefix=your_directory
+```
 
 # 4. Build & Run rigidfibers
 
@@ -60,8 +64,3 @@ export OPENBLAS_ROOT=my_directory
 ```bash
 ./fibers_runner.py cuda run --magma --numerical --D2 tests/config.ini tests/XcT_ref100.in
 ```
-
-
-
-
-
