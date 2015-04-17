@@ -302,20 +302,25 @@ PROGRAM fibers
     CLOSE(10)
 #endif
 
-    !WRITE(str_timestep, '(I0.5)') current_timestep
-    !OPEN(10,file=""//TRIM(str_timestep)//".state");
-    !WRITE(10,*) NUMBER_OF_FIBERS
-    !DO i=1,NUMBER_OF_FIBERS
-    !  WRITE(10,'(*(F16.8))') current_positions((i-1)*DIMENSIONS+1),current_positions((i-1)*DIMENSIONS+2),current_positions((i-1)*DIMENSIONS+3)
-    !  WRITE(10,'(*(F16.8))') current_orientations((i-1)*DIMENSIONS+1),current_orientations((i-1)*DIMENSIONS+2),current_orientations((i-1)*DIMENSIONS+3)
-    !END DO
-    !CLOSE(10)
-
-    !OPEN(20,file=""//TRIM(str_timestep)//".velocity")
-    !DO i=1,NUMBER_OF_FIBERS
-    !  WRITE(20,'(*(F16.8))') current_translational_velocities((i-1)*DIMENSIONS+1),current_translational_velocities((i-1)*DIMENSIONS+2),current_translational_velocities((i-1)*DIMENSIONS+3)
-    !END DO
-    !CLOSE(20)
+#if !defined(BENCHMARK) && !defined(VALIDATE)
+    IF (STATE_SAVE_INTERVAL > 0 .AND. mod(current_timestep,STATE_SAVE_INTERVAL) == 0) THEN
+      WRITE(str_timestep, '(I0.5)') current_timestep
+      OPEN(10,file=""//TRIM(str_timestep)//".state");
+      WRITE(10,*) NUMBER_OF_FIBERS
+      DO i=1,NUMBER_OF_FIBERS
+       WRITE(10,'(*(F16.8))') current_positions((i-1)*DIMENSIONS+1),current_positions((i-1)*DIMENSIONS+2),current_positions((i-1)*DIMENSIONS+3)
+       WRITE(10,'(*(F16.8))') current_orientations((i-1)*DIMENSIONS+1),current_orientations((i-1)*DIMENSIONS+2),current_orientations((i-1)*DIMENSIONS+3)
+      END DO
+      CLOSE(10)
+    END IF
+    IF (VELOCITY_SAVE_INTERVAL > 0 .AND. mod(current_timestep,VELOCITY_SAVE_INTERVAL) == 0) THEN
+      OPEN(20,file=""//TRIM(str_timestep)//".velocity")
+      DO i=1,NUMBER_OF_FIBERS
+       WRITE(20,'(*(F16.8))') current_translational_velocities((i-1)*DIMENSIONS+1),current_translational_velocities((i-1)*DIMENSIONS+2),current_translational_velocities((i-1)*DIMENSIONS+3)
+      END DO
+      CLOSE(20)
+    END IF
+#endif
 
     tmp_pointer => previous_translational_velocities
     previous_translational_velocities => current_translational_velocities
